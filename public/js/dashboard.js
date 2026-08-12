@@ -24,14 +24,16 @@ async function fetchServerStatus() {
         if (res.status === 401) { window.location.href = '/login.html'; return; }
         const data = await res.json();
         
-        if (!data.success || !data.online) {
-            document.getElementById('serverName').innerText = data.error || "Server Unreachable";
+        if (!data || !data.success || !data.online) {
+            document.getElementById('serverName').innerText = "Server Offline / Handshake Failed";
             document.getElementById('currentMap').innerText = "-";
             document.getElementById('tScore').innerText = "0";
             document.getElementById('ctScore').innerText = "0";
             statusBadge.innerText = "OFFLINE";
             statusBadge.className = "status-badge offline";
-            document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">${data.error || 'Connection Failed'}</td></tr>`;
+            
+            const errMsg = (data && data.error) ? data.error : "Connection Timeout";
+            document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3" style="color: #f44336;">Reason: ${escapeHtml(errMsg)}</td></tr>`;
             return;
         }
 
@@ -40,10 +42,9 @@ async function fetchServerStatus() {
         statusBadge.innerText = "ONLINE";
         statusBadge.className = "status-badge online";
         
-        // Updates live parsed round numbers dynamically inside tracker card
         document.getElementById('tScore').innerText = data.score.t;
         document.getElementById('ctScore').innerText = data.score.ct;
-        
+
         updatePlayerTable(data.players);
         if (!mapsLoaded && data.availableMaps && data.availableMaps.length > 0) {
             populateMapDropdown(data.availableMaps);
@@ -51,17 +52,22 @@ async function fetchServerStatus() {
     } catch (err) {
         statusBadge.innerText = "OFFLINE";
         statusBadge.className = "status-badge offline";
+        document.getElementById('serverName').innerText = "Panel API Endpoint Unreachable";
+        document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">Failed to talk to Web App Backend.</td></tr>`;
     }
 }
 
 function populateMapDropdown(maps) {
     const select = document.getElementById('mapDropdown');
+    if (!select) return;
     select.innerHTML = maps.map(map => `<option value="${escapeHtml(map)}">${escapeHtml(map)}</option>`).join('');
     mapsLoaded = true;
 }
 
 function updatePlayerTable(players) {
     const tbody = document.getElementById('playerTableBody');
+    if (!tbody) return;
+    
     if (!players || players.length === 0) {
         tbody.innerHTML = `<tr><td colspan="3">Server is empty.</td></tr>`;
         return;
@@ -102,11 +108,12 @@ async function sendCommand(command) {
 
 function sendCustomCommand() {
     const input = document.getElementById('customCmd');
-    if (!input.value.trim()) return;
+    if (!input || !input.value.trim()) return;
     sendCommand(input.value);
     input.value = '';
 }
 
+// Fixed escaping parameters mapping
 function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -123,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('changeMapBtn').addEventListener('click', () => {
         const select = document.getElementById('mapDropdown');
-        if (select.value) sendCommand(`changelevel ${select.value}`);
+        if (select && select.value) sendCommand(`changelevel ${select.value}`);
     });
 
     document.body.addEventListener('click', (e) => {
