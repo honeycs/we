@@ -23,6 +23,7 @@ async function logout() {
 
 // --- 2. DASHBOARD FUNCTIONS ---
 const consoleDiv = document.getElementById('console');
+let mapsLoaded = false; // Prevents select box options from flashing/re-rendering every 5 seconds
 
 async function fetchServerStatus() {
     const statusBadge = document.getElementById('serverStatus');
@@ -49,7 +50,13 @@ async function fetchServerStatus() {
         document.getElementById('currentMap').innerText = data.map;
         statusBadge.innerText = "ONLINE";
         statusBadge.className = "status-badge online";
+        
         updatePlayerTable(data.players);
+        
+        // Dynamically populates dropdown based on live parsed maps.ini list from server payload
+        if (!mapsLoaded && data.availableMaps && data.availableMaps.length > 0) {
+            populateMapDropdown(data.availableMaps);
+        }
 
     } catch (err) {
         console.error("Frontend Fetch Error:", err);
@@ -60,6 +67,12 @@ async function fetchServerStatus() {
     }
 }
 
+function populateMapDropdown(maps) {
+    const select = document.getElementById('mapDropdown');
+    select.innerHTML = maps.map(map => `<option value="${escapeHtml(map)}">${escapeHtml(map)}</option>`).join('');
+    mapsLoaded = true;
+}
+
 function updatePlayerTable(players) {
     const tbody = document.getElementById('playerTableBody');
     if (!players || players.length === 0) {
@@ -67,12 +80,9 @@ function updatePlayerTable(players) {
         return;
     }
 
-    tbody.innerHTML = ''; // Clear table
-    
+    tbody.innerHTML = '';
     players.forEach(p => {
         const row = document.createElement('tr');
-        
-        // Clean values safely to prevent unexpected token problems
         const nameStr = escapeHtml(p.name);
         const steamStr = escapeHtml(p.steamid);
         const userStr = escapeHtml(p.userid);
@@ -98,12 +108,12 @@ async function sendCommand(command) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ command })
-                });
+        });
         const data = await res.json();
         consoleDiv.innerHTML += `${data.output || data.error || 'Done.'}\n\n`;
-            } catch (err) {
+    } catch (err) {
         consoleDiv.innerHTML += `Connection Error: ${err.message}\n\n`;
-            }
+    }
     consoleDiv.scrollTop = consoleDiv.scrollHeight;
 }
 
@@ -119,28 +129,32 @@ function escapeHtml(str) {
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// --- 3. SECURE EVENT LISTENERS (NO INLINE HTML ONCLICK PERMITTED) ---
+// --- 3. EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Top-bar listeners
     document.getElementById('logoutBtn').addEventListener('click', logout);
     document.getElementById('softRebootBtn').addEventListener('click', () => {
         if(confirm("Sending 'quit' tells LGSM to auto-reboot the binary. Proceed?")) sendCommand('quit');
     });
 
-    // Custom console form
     document.getElementById('executeCmdBtn').addEventListener('click', sendCustomCommand);
     document.getElementById('customCmd').addEventListener('keypress', (e) => {
         if(e.key === 'Enter') sendCustomCommand();
     });
 
-    // Handle Quick Action and Map buttons via global data-cmd routing
+    // Execute the level load command target from dropdown value selection
+    document.getElementById('changeMapBtn').addEventListener('click', () => {
+        const select = document.getElementById('mapDropdown');
+        if (select.value) {
+            sendCommand(`changelevel ${select.value}`);
+        }
+    });
+
     document.body.addEventListener('click', (e) => {
         if (e.target && e.target.classList.contains('rcon-action-btn')) {
             const cmd = e.target.getAttribute('data-cmd');
             if (cmd) sendCommand(cmd);
         }
 
-        // Dynamic player action bindings
         if (e.target && e.target.classList.contains('kick-player-btn')) {
             const uid = e.target.getAttribute('data-userid');
             const name = e.target.getAttribute('data-name');
@@ -165,7 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Run active server cycles
     fetchServerStatus();
     setInterval(fetchServerStatus, 5000);
 });
