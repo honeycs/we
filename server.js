@@ -36,7 +36,7 @@ function sendRconCommand(command) {
         const timer = setTimeout(() => {
             try { client.disconnect(); } catch(e) {}
             if (!finished) reject(new Error('UDP RCON Handshake Timed Out'));
-        }, 4000);
+        }, 3500);
 
         client.on('auth', () => { client.send(command); });
         client.on('response', (str) => {
@@ -81,15 +81,18 @@ app.post('/api/command', isAuthenticated, async (req, res) => {
 
 app.get('/api/status', isAuthenticated, async (req, res) => {
     try {
-        const statusOutput = await sendRconCommand('status');
-        
-        // Secondary data fetch query targeting active amx score values
-        let matchOutput = "";
-        try {
-            matchOutput = await sendRconCommand('amx_match_status');
-        } catch (e) {
-            // Suppress fallback if the specialized match engine plugin isn't active
+        // Query both endpoints concurrently to avoid double-handshake stalls
+        const [statusResult, matchResult] = await Promise.allSettled([
+            sendRconCommand('status'),
+            sendRconCommand('amx_match_status')
+        ]);
+
+        if (statusResult.status === 'rejected') {
+            throw new Error(statusResult.reason.message);
         }
+
+        const statusOutput = statusResult.value;
+        const matchOutput = matchResult.status === 'fulfilled' ? matchResult.value : "";
 
         const lines = statusOutput.split('\n');
         const players = [];
@@ -104,8 +107,8 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
                 if (mapParts.length > 1) {
-                    const atParts = mapParts.split('at:');
-                    map = atParts[0].trim();
+                    const atParts = mapParts[1].split('at:'); // Fixed: Targeted mapParts string index before splitting
+                    map = atParts[0].trim(); // Fixed: Trimmed the isolated map string element cleanly
                 }
             }
             
@@ -119,10 +122,8 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
             }
         });
 
-        // Parse matching tallies directly out of amx_match_status output console dumps
         let score = { t: 0, ct: 0 };
         if (matchOutput) {
-            // Regex handles strings like: "Terrorists: 10  Counter-Terrorists: 12"
             const tMatch = matchOutput.match(/Terrorists:\s*(\d+)/i);
             const ctMatch = matchOutput.match(/Counter-Terrorists:\s*(\d+)/i);
             if (tMatch) score.t = parseInt(tMatch[1]);
