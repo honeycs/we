@@ -81,7 +81,6 @@ app.post('/api/command', isAuthenticated, async (req, res) => {
 
 app.get('/api/status', isAuthenticated, async (req, res) => {
     try {
-        // Query both endpoints concurrently to avoid double-handshake stalls
         const [statusResult, matchResult] = await Promise.allSettled([
             sendRconCommand('status'),
             sendRconCommand('amx_match_status')
@@ -104,16 +103,20 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
                 hostname = line.replace('hostname:', '').trim();
             }
             
+            // FIXED: Secure Map Split execution checking index structures safely
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
-                if (mapParts.length > 1) {
-                    const atParts = mapParts[1].split('at:'); // Fixed: Targeted mapParts string index before splitting
-                    map = atParts[0].trim(); // Fixed: Trimmed the isolated map string element cleanly
+                if (mapParts && mapParts.length > 1) {
+                    const atParts = mapParts[1].split('at:');
+                    if (atParts && atParts.length > 0) {
+                        map = atParts[0].trim();
+                    }
                 }
             }
             
+            // FIXED: Defensive index mappings targeting string tokens smoothly
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
-            if (playerMatch) {
+            if (playerMatch && playerMatch.length >= 5) {
                 players.push({ 
                     userid: playerMatch[1], 
                     name: playerMatch[2], 
@@ -126,8 +129,8 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
         if (matchOutput) {
             const tMatch = matchOutput.match(/Terrorists:\s*(\d+)/i);
             const ctMatch = matchOutput.match(/Counter-Terrorists:\s*(\d+)/i);
-            if (tMatch) score.t = parseInt(tMatch[1]);
-            if (ctMatch) score.ct = parseInt(ctMatch[1]);
+            if (tMatch && tMatch[1]) score.t = parseInt(tMatch[1]);
+            if (ctMatch && ctMatch[1]) score.ct = parseInt(ctMatch[1]);
         }
 
         let availableMaps = [];
@@ -139,6 +142,7 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
 
         res.json({ success: true, online: true, hostname, map, players, availableMaps, score });
     } catch (error) {
+        // Fallback captures error contexts explicitly to report down to frontend tables
         res.json({ success: true, online: false, error: error.message });
     }
 });
