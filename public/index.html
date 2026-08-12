@@ -109,10 +109,28 @@
             font-weight: 600;
         }
         select:focus { outline: none; border-color: #ff9800; }
-        
-        /* Layout formatting blocks to layout config macro scripts in clean grid stacks */
         .config-btn-stack { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
         .config-btn-stack button { text-align: left; padding: 12px 16px; margin: 0; width: 100%; }
+
+        /* --- SCOREBOARD LAYOUT ELEMENTS --- */
+        .scoreboard-card {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            background: #141822;
+            border: 1px solid #2d3748;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            box-shadow: inset 0 2px 15px rgba(0,0,0,0.4);
+        }
+        .team-block { display: flex; flex-direction: column; align-items: center; min-width: 100px; }
+        .team-name { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+        .team-t { color: #de9b35; text-shadow: 0 0 8px rgba(222,155,53,0.3); }
+        .team-ct { color: #5c8cb3; text-shadow: 0 0 8px rgba(92,140,179,0.3); }
+        .score-display { font-size: 42px; font-weight: 800; font-family: monospace; line-height: 1; }
+        .score-divider { font-size: 28px; color: #4a5568; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -120,6 +138,19 @@
         <div class="header-bar">
             <h1>CS 1.6 Server Commander</h1>
             <button class="logout-btn" id="logoutBtn">🚪 Logout</button>
+        </div>
+
+        <!-- Live Round Match Tracker Card Frame -->
+        <div class="scoreboard-card">
+            <div class="team-block team-t">
+                <span class="team-name">Terrorists</span>
+                <span class="score-display" id="tScore">0</span>
+            </div>
+            <div class="score-divider">:</div>
+            <div class="team-block team-ct">
+                <span class="team-name">Counter-Terrorists</span>
+                <span class="score-display" id="ctScore">0</span>
+            </div>
         </div>
         
         <div class="card server-controls">
