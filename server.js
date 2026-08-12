@@ -1,7 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-const Rcon = require('rcon'); // Correct package import name
+const Rcon = require('rcon'); 
 const path = require('path');
 
 const app = express();
@@ -27,7 +27,6 @@ app.use(session({
 // UDP-configured Rcon execution wrapper for GoldSrc
 function sendRconCommand(command) {
     return new Promise((resolve, reject) => {
-        // Pass options: tcp: false forces UDP protocol for HLDS
         const client = new Rcon(RCON_HOST, RCON_PORT, RCON_PASSWORD, {
             tcp: false,
             challenge: false
@@ -102,14 +101,23 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
         let map = "Unknown Map";
 
         lines.forEach(line => {
-            if (line.startsWith('hostname:')) hostname = line.replace('hostname:', '').trim();
-            if (line.startsWith('map     :')) map = line.substring(9, line.indexOf('at:')).trim();
+            // Fix map layout matching for classic GoldSrc string structures
+            if (line.includes('hostname:')) {
+                hostname = line.replace('hostname:', '').trim();
+            }
+            if (line.includes('map     :')) {
+                // Extracts exactly the map name between 'map     :' and 'at:'
+                const rawMap = line.split('map     :')[1];
+                if (rawMap) map = rawMap.split('at:')[0].trim();
+            }
+            
+            // GoldSource Engine regex pattern matching active players
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
                 players.push({
-                    userid: playerMatch,
-                    name: playerMatch,
-                    steamid: playerMatch
+                    userid: playerMatch[3],   // Fixed index allocation pointers
+                    name: playerMatch[2],     // Extracts clean string payload
+                    steamid: playerMatch[4]   // Protects against array passing
                 });
             }
         });
