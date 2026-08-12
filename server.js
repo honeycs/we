@@ -8,6 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// --- CONFIGURATION ---
 const RCON_HOST = process.env.RCON_HOST || 'YOUR_SERVER_IP';
 const RCON_PORT = parseInt(process.env.RCON_PORT || '27015');
 const RCON_PASSWORD = process.env.RCON_PASSWORD || 'YOUR_RCON_PASSWORD';
@@ -16,6 +17,7 @@ const PANEL_USERNAME = process.env.PANEL_USERNAME || 'admin';
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || 'ChangeMe123!'; 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'super-secret-key-change-this';
 
+// --- SESSION STORAGE WITH FILESTORE ---
 app.use(session({
     store: new FileStore({ path: './sessions', ttl: 86400, retries: 0 }),
     secret: SESSION_SECRET,
@@ -24,9 +26,10 @@ app.use(session({
     cookie: { maxAge: 24 * 60 * 60 * 1000, secure: false }
 }));
 
-// UDP-configured Rcon execution wrapper for GoldSrc
+// --- GOLDSRC ENGINE UDP RCON CONTROLLER ---
 function sendRconCommand(command) {
     return new Promise((resolve, reject) => {
+        // Option 'tcp: false' explicitly switches packet delivery to UDP datagrams
         const client = new Rcon(RCON_HOST, RCON_PORT, RCON_PASSWORD, {
             tcp: false,
             challenge: false
@@ -70,6 +73,7 @@ function isAuthenticated(req, res, next) {
     res.status(401).json({ success: false, error: "Unauthorized" });
 }
 
+// --- AUTH ROUTING APIs ---
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (username === PANEL_USERNAME && password === PANEL_PASSWORD) {
@@ -83,6 +87,7 @@ app.post('/api/login', (req, res) => {
 app.post('/api/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
 app.get('/api/check-auth', (req, res) => { res.json({ authenticated: !!(req.session && req.session.loggedIn) }); });
 
+// --- PROTECTED RCON ACTION ENDPOINTS ---
 app.post('/api/command', isAuthenticated, async (req, res) => {
     try {
         const output = await sendRconCommand(req.body.command);
@@ -101,23 +106,24 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
         let map = "Unknown Map";
 
         lines.forEach(line => {
-            // Fix map layout matching for classic GoldSrc string structures
+            // 1. Scrape Hostname
             if (line.includes('hostname:')) {
                 hostname = line.replace('hostname:', '').trim();
             }
-            if (line.includes('map     :')) {
-                // Extracts exactly the map name between 'map     :' and 'at:'
-                const rawMap = line.split('map     :')[1];
-                if (rawMap) map = rawMap.split('at:')[0].trim();
+
+            // 2. Safe Map RegEx Extractor targeting GoldSrc structural variations
+            const mapMatch = line.match(/map\s+:\s+([^\s]+)\s+at/);
+            if (mapMatch && mapMatch[1]) {
+                map = mapMatch[1].trim();
             }
             
-            // GoldSource Engine regex pattern matching active players
+            // 3. Regular Expression extraction pattern matching active telemetry elements
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
                 players.push({
-                    userid: playerMatch[3],   // Fixed index allocation pointers
-                    name: playerMatch[2],     // Extracts clean string payload
-                    steamid: playerMatch[4]   // Protects against array passing
+                    userid: playerMatch[3],   // Index 3 extracts the precise numeric user ID 
+                    name: playerMatch[2],     // Index 2 parses the literal string player name
+                    steamid: playerMatch[4]   // Index 4 captures authorization network identifier
                 });
             }
         });
@@ -127,6 +133,7 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
     }
 });
 
+// --- ROUTE & DIRECTORY FALLBACK ENDPOINTS ---
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/', (req, res) => {
     if (req.session && req.session.loggedIn) res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -134,5 +141,6 @@ app.get('/', (req, res) => {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- STANDBY BOUND PORT ENGINE ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`UDP Rcon panel running on port ${PORT}`));
