@@ -36,7 +36,7 @@ function sendRconCommand(command) {
         const timer = setTimeout(() => {
             try { client.disconnect(); } catch(e) {}
             if (!finished) reject(new Error('UDP RCON Handshake Timed Out'));
-        }, 3500);
+        }, 4000);
 
         client.on('auth', () => { client.send(command); });
         client.on('response', (str) => {
@@ -81,18 +81,15 @@ app.post('/api/command', isAuthenticated, async (req, res) => {
 
 app.get('/api/status', isAuthenticated, async (req, res) => {
     try {
-        // Query both endpoints concurrently to avoid double-handshake stalls
-        const [statusResult, matchResult] = await Promise.allSettled([
-            sendRconCommand('status'),
-            sendRconCommand('amx_match_status')
-        ]);
-
-        if (statusResult.status === 'rejected') {
-            throw new Error(statusResult.reason.message);
+        const statusOutput = await sendRconCommand('status');
+        
+        // Secondary data fetch query targeting active amx score values
+        let matchOutput = "";
+        try {
+            matchOutput = await sendRconCommand('amx_match_status');
+        } catch (e) {
+            // Suppress fallback if the specialized match engine plugin isn't active
         }
-
-        const statusOutput = statusResult.value;
-        const matchOutput = matchResult.status === 'fulfilled' ? matchResult.value : "";
 
         const lines = statusOutput.split('\n');
         const players = [];
@@ -104,19 +101,16 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
                 hostname = line.replace('hostname:', '').trim();
             }
             
-            // FIXED FIXED FIXED: Target index [1] of the split array string before running the secondary split!
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
-                if (mapParts && mapParts.length > 1) {
-                    const atParts = mapParts[1].split('at:');
-                    if (atParts && atParts.length > 0) {
-                        map = atParts[0].trim();
-                    }
+                if (mapParts.length > 1) {
+                    const atParts = mapParts.split('at:');
+                    map = atParts[0].trim();
                 }
             }
             
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
-            if (playerMatch && playerMatch.length >= 5) {
+            if (playerMatch) {
                 players.push({ 
                     userid: playerMatch[1], 
                     name: playerMatch[2], 
@@ -125,12 +119,14 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
             }
         });
 
+        // Parse matching tallies directly out of amx_match_status output console dumps
         let score = { t: 0, ct: 0 };
         if (matchOutput) {
+            // Regex handles strings like: "Terrorists: 10  Counter-Terrorists: 12"
             const tMatch = matchOutput.match(/Terrorists:\s*(\d+)/i);
             const ctMatch = matchOutput.match(/Counter-Terrorists:\s*(\d+)/i);
-            if (tMatch && tMatch.length > 1) score.t = parseInt(tMatch[1]);
-            if (ctMatch && ctMatch.length > 1) score.ct = parseInt(ctMatch[1]);
+            if (tMatch) score.t = parseInt(tMatch[1]);
+            if (ctMatch) score.ct = parseInt(ctMatch[1]);
         }
 
         let availableMaps = [];
