@@ -109,6 +109,10 @@
             font-weight: 600;
         }
         select:focus { outline: none; border-color: #ff9800; }
+        
+        /* Layout formatting blocks to layout config macro scripts in clean grid stacks */
+        .config-btn-stack { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+        .config-btn-stack button { text-align: left; padding: 12px 16px; margin: 0; width: 100%; }
     </style>
 </head>
 <body>
@@ -156,7 +160,7 @@
                 </div>
             </div>
 
-            <!-- Right Side: Config Toggles & maps.ini Dropdown -->
+            <!-- Right Side: Change Map Dropdown & Exact Config Script Exec Macros -->
             <div class="card">
                 <h3>Change Map</h3>
                 <div class="select-group">
@@ -167,10 +171,13 @@
                 </div>
 
                 <h3 style="margin-top:32px;">Config Toggles</h3>
-                <button class="rcon-action-btn" data-cmd="mp_friendlyfire 1">FF: ON</button>
-                <button class="rcon-action-btn" data-cmd="mp_friendlyfire 0">FF: OFF</button>
-                <button class="rcon-action-btn" data-cmd="pausable 1">Pause: Allowed</button>
-                <button class="rcon-action-btn" data-cmd="pausable 0">Pause: Blocked</button>
+                <div class="config-btn-stack">
+                    <button class="rcon-action-btn" data-cmd="exec csserver.cfg">⚙️ csserver</button>
+                    <button class="rcon-action-btn" data-cmd="exec mix.cfg">⚔️ Mix</button>
+                    <button class="rcon-action-btn" data-cmd="exec nl.cfg">🇪🇺 NL</button>
+                    <button class="rcon-action-btn" data-cmd="exec league.cfg">🏆 League</button>
+                    <button class="rcon-action-btn" data-cmd="exec league.cfg">⏱️ LeagueOT</button>
+                </div>
             </div>
         </div>
     </div>
