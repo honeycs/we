@@ -11,8 +11,6 @@ app.use(express.urlencoded({ extended: true }));
 const RCON_HOST = process.env.RCON_HOST || 'YOUR_SERVER_IP';
 const RCON_PORT = parseInt(process.env.RCON_PORT || '27015');
 const RCON_PASSWORD = process.env.RCON_PASSWORD || 'YOUR_RCON_PASSWORD';
-
-// Environment variable map list override
 const MAPS_INI_LIST = process.env.MAPS_INI_LIST || '';
 
 const PANEL_USERNAME = process.env.PANEL_USERNAME || 'admin';
@@ -84,6 +82,15 @@ app.post('/api/command', isAuthenticated, async (req, res) => {
 app.get('/api/status', isAuthenticated, async (req, res) => {
     try {
         const statusOutput = await sendRconCommand('status');
+        
+        // Secondary data fetch query targeting active amx score values
+        let matchOutput = "";
+        try {
+            matchOutput = await sendRconCommand('amx_match_status');
+        } catch (e) {
+            // Suppress fallback if the specialized match engine plugin isn't active
+        }
+
         const lines = statusOutput.split('\n');
         const players = [];
         let hostname = "CS 1.6 Server";
@@ -94,25 +101,33 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
                 hostname = line.replace('hostname:', '').trim();
             }
             
-            // FIXED: Added array index targeting to fix split error
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
                 if (mapParts.length > 1) {
-                    const atParts = mapParts[1].split('at:');
+                    const atParts = mapParts.split('at:');
                     map = atParts[0].trim();
                 }
             }
             
-            // FIXED: Specified array indices explicitly to isolate structural variables
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
                 players.push({ 
-                    userid: playerMatch[3], 
+                    userid: playerMatch[1], 
                     name: playerMatch[2], 
                     steamid: playerMatch[4] 
                 });
             }
         });
+
+        // Parse matching tallies directly out of amx_match_status output console dumps
+        let score = { t: 0, ct: 0 };
+        if (matchOutput) {
+            // Regex handles strings like: "Terrorists: 10  Counter-Terrorists: 12"
+            const tMatch = matchOutput.match(/Terrorists:\s*(\d+)/i);
+            const ctMatch = matchOutput.match(/Counter-Terrorists:\s*(\d+)/i);
+            if (tMatch) score.t = parseInt(tMatch[1]);
+            if (ctMatch) score.ct = parseInt(ctMatch[1]);
+        }
 
         let availableMaps = [];
         if (MAPS_INI_LIST.trim() !== '') {
@@ -121,7 +136,7 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
             availableMaps = ["de_dust2", "de_inferno", "de_nuke", "de_train", "cs_italy"];
         }
 
-        res.json({ success: true, online: true, hostname, map, players, availableMaps });
+        res.json({ success: true, online: true, hostname, map, players, availableMaps, score });
     } catch (error) {
         res.json({ success: true, online: false, error: error.message });
     }
