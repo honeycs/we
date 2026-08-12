@@ -103,7 +103,6 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
                 hostname = line.replace('hostname:', '').trim();
             }
             
-            // FIXED: Targeted the array index element explicitly before executing split
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
                 if (mapParts && mapParts.length > 1) {
@@ -145,7 +144,8 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
     }
 });
 
-app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'with', 'login.html')));
+// FIXED: Corrected path mapping to point cleanly to public folder instead of broken with folder
+app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/', (req, res) => {
     if (req.session && req.session.loggedIn) res.sendFile(path.join(__dirname, 'public', 'index.html'));
     else res.redirect('/login.html');
