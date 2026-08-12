@@ -27,6 +27,8 @@ async function fetchServerStatus() {
         if (!data.success || !data.online) {
             document.getElementById('serverName').innerText = data.error || "Server Unreachable";
             document.getElementById('currentMap').innerText = "-";
+            document.getElementById('tScore').innerText = "0";
+            document.getElementById('ctScore').innerText = "0";
             statusBadge.innerText = "OFFLINE";
             statusBadge.className = "status-badge offline";
             document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">${data.error || 'Connection Failed'}</td></tr>`;
@@ -37,6 +39,10 @@ async function fetchServerStatus() {
         document.getElementById('currentMap').innerText = data.map;
         statusBadge.innerText = "ONLINE";
         statusBadge.className = "status-badge online";
+        
+        // Updates live parsed round numbers dynamically inside tracker card
+        document.getElementById('tScore').innerText = data.score.t;
+        document.getElementById('ctScore').innerText = data.score.ct;
         
         updatePlayerTable(data.players);
         if (!mapsLoaded && data.availableMaps && data.availableMaps.length > 0) {
