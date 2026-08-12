@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
     <title>CS 1.6 Dashboard</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; padding: 20px; }
@@ -90,7 +91,7 @@
     </div>
 
     <script>
-        // --- AUTH CHECK & LOGOUT GUARD ---
+        // --- 1. AUTH CHECK & LOGOUT GUARD ---
         async function checkAuth() {
             try {
                 const res = await fetch('/api/check-auth');
@@ -102,7 +103,6 @@
                 console.error("Auth verification failed", err);
             }
         }
-        // Run verification immediately before hitting server APIs
         checkAuth();
 
         async function logout() {
@@ -114,32 +114,42 @@
             }
         }
 
-        // --- DASHBOARD FUNCTIONS ---
+        // --- 2. DASHBOARD FUNCTIONS ---
         const consoleDiv = document.getElementById('console');
 
-        // Fetch Server Data and Player list every 5 seconds
         async function fetchServerStatus() {
+            const statusBadge = document.getElementById('serverStatus');
             try {
                 const res = await fetch('/api/status');
+                
+                if (res.status === 401) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+
                 const data = await res.json();
                 
-                const statusBadge = document.getElementById('serverStatus');
-                if (data.online) {
-                    document.getElementById('serverName').innerText = data.hostname;
-                    document.getElementById('currentMap').innerText = data.map;
-                    statusBadge.innerText = "ONLINE";
-                    statusBadge.className = "status-badge online";
-                    
-                    updatePlayerTable(data.players);
-                } else {
-                    document.getElementById('serverName').innerText = "Server Unreachable";
+                if (!data.success || !data.online) {
+                    document.getElementById('serverName').innerText = data.error || "Server Unreachable";
                     document.getElementById('currentMap').innerText = "-";
                     statusBadge.innerText = "OFFLINE";
                     statusBadge.className = "status-badge offline";
-                    document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">Failed to sync with game server.</td></tr>`;
+                    document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">${data.error || 'Connection Failed'}</td></tr>`;
+                    return;
                 }
+
+                document.getElementById('serverName').innerText = data.hostname;
+                document.getElementById('currentMap').innerText = data.map;
+                statusBadge.innerText = "ONLINE";
+                statusBadge.className = "status-badge online";
+                updatePlayerTable(data.players);
+
             } catch (err) {
-                console.error("Status Sync Error:", err);
+                console.error("Frontend Fetch Error:", err);
+                statusBadge.innerText = "OFFLINE";
+                statusBadge.className = "status-badge offline";
+                document.getElementById('serverName').innerText = "API Connection Lost";
+                document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">Failed to communicate with Web Backend.</td></tr>`;
             }
         }
 
@@ -150,13 +160,14 @@
                 return;
             }
 
+            // Fixed properties targeting clean string outputs to prevent CSP evaluation triggers
             tbody.innerHTML = players.map(p => `
                 <tr>
                     <td><b>${escapeHtml(p.name)}</b></td>
-                    <td><code>${p.steamid}</code></td>
+                    <td><code>${escapeHtml(p.steamid)}</code></td>
                     <td>
-                        <button onclick="kickPlayer('${p.userid}', '${escapeHtml(p.name)}')">Kick</button>
-                        <button class="danger" onclick="banPlayer('${p.steamid}', '${escapeHtml(p.name)}')">Ban</button>
+                        <button onclick="kickPlayer('${escapeHtml(p.userid)}', '${escapeHtml(p.name)}')">Kick</button>
+                        <button class="danger" onclick="banPlayer('${escapeHtml(p.steamid)}', '${escapeHtml(p.name)}')">Ban</button>
                     </td>
                 </tr>
             `).join('');
@@ -198,21 +209,3 @@
             if(steamId === "BOT" || steamId.includes("HLTV")) {
                 alert("You cannot ban bots/HLTV via SteamID.");
                 return;
-            }
-            if(confirm(`Are you sure you want to PERMANENTLY ban ${name}?`)) {
-                sendCommand(`banid 0 ${steamId} kick`);
-                sendCommand(`writeid`); 
-                setTimeout(fetchServerStatus, 1000);
-            }
-        }
-
-        function confirmRestart() {
-            if(confirm("Sending 'quit' tells LGSM to auto-reboot the instance binary. Proceed?")) {
-                sendCommand('quit');
-            }
-        }
-
-        function escapeHtml(str) {
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-        }
-
