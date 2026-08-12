@@ -81,6 +81,7 @@ app.post('/api/command', isAuthenticated, async (req, res) => {
 
 app.get('/api/status', isAuthenticated, async (req, res) => {
     try {
+        // Query both endpoints concurrently to avoid double-handshake stalls
         const [statusResult, matchResult] = await Promise.allSettled([
             sendRconCommand('status'),
             sendRconCommand('amx_match_status')
@@ -103,7 +104,7 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
                 hostname = line.replace('hostname:', '').trim();
             }
             
-            // FIXED: Secure Map Split execution checking index structures safely
+            // FIXED FIXED FIXED: Target index [1] of the split array string before running the secondary split!
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
                 if (mapParts && mapParts.length > 1) {
@@ -114,7 +115,6 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
                 }
             }
             
-            // FIXED: Defensive index mappings targeting string tokens smoothly
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch && playerMatch.length >= 5) {
                 players.push({ 
@@ -129,8 +129,8 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
         if (matchOutput) {
             const tMatch = matchOutput.match(/Terrorists:\s*(\d+)/i);
             const ctMatch = matchOutput.match(/Counter-Terrorists:\s*(\d+)/i);
-            if (tMatch && tMatch[1]) score.t = parseInt(tMatch[1]);
-            if (ctMatch && ctMatch[1]) score.ct = parseInt(ctMatch[1]);
+            if (tMatch && tMatch.length > 1) score.t = parseInt(tMatch[1]);
+            if (ctMatch && ctMatch.length > 1) score.ct = parseInt(ctMatch[1]);
         }
 
         let availableMaps = [];
@@ -142,7 +142,6 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
 
         res.json({ success: true, online: true, hostname, map, players, availableMaps, score });
     } catch (error) {
-        // Fallback captures error contexts explicitly to report down to frontend tables
         res.json({ success: true, online: false, error: error.message });
     }
 });
