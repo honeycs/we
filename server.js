@@ -1,7 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-const Rcon = require('node-rcon'); // Swapped to node-rcon for UDP
+const Rcon = require('rcon'); // Correct package import name
 const path = require('path');
 
 const app = express();
@@ -24,38 +24,45 @@ app.use(session({
     cookie: { maxAge: 24 * 60 * 60 * 1000, secure: false }
 }));
 
-// Safe UDP RCON Execution Wrapper
+// UDP-configured Rcon execution wrapper for GoldSrc
 function sendRconCommand(command) {
     return new Promise((resolve, reject) => {
-        // Instantiate modern GoldSrc UDP protocol instance
-        const rcon = new Rcon(RCON_HOST, RCON_PORT, RCON_PASSWORD);
-        let executed = false;
+        // Pass options: tcp: false forces UDP protocol for HLDS
+        const client = new Rcon(RCON_HOST, RCON_PORT, RCON_PASSWORD, {
+            tcp: false,
+            challenge: false
+        });
+        let finished = false;
 
-        // Force a safety timeout window so web threads never hang
         const timer = setTimeout(() => {
-            rcon.disconnect();
-            if (!executed) reject(new Error('UDP RCON Query Timed Out'));
+            try { client.disconnect(); } catch(e) {}
+            if (!finished) reject(new Error('UDP RCON Connection Timed Out'));
         }, 3000);
 
-        rcon.on('auth', () => {
-            rcon.send(command);
+        client.on('auth', () => {
+            client.send(command);
         });
 
-        rcon.on('response', (str) => {
-            executed = true;
+        client.on('response', (str) => {
+            finished = true;
             clearTimeout(timer);
-            rcon.disconnect();
+            try { client.disconnect(); } catch(e) {}
             resolve(str || "Done.");
         });
 
-        rcon.on('error', (err) => {
-            executed = true;
+        client.on('error', (err) => {
+            finished = true;
             clearTimeout(timer);
-            rcon.disconnect();
+            try { client.disconnect(); } catch(e) {}
             reject(err);
         });
 
-        rcon.connect();
+        try {
+            client.connect();
+        } catch (err) {
+            clearTimeout(timer);
+            reject(err);
+        }
     });
 }
 
@@ -100,9 +107,9 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
                 players.push({
-                    userid: playerMatch[1],
-                    name: playerMatch[2],
-                    steamid: playerMatch[4]
+                    userid: playerMatch,
+                    name: playerMatch,
+                    steamid: playerMatch
                 });
             }
         });
@@ -120,4 +127,4 @@ app.get('/', (req, res) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`UDP Engine panel running on port ${PORT}`));
+app.listen(PORT, () => console.log(`UDP Rcon panel running on port ${PORT}`));
