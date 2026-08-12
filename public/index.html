@@ -97,8 +97,6 @@
         #executeCmdBtn { margin: 0; border-radius: 0 6px 6px 0; background: #ff9800; color: #12141c; border: none; font-weight: 700; }
         #executeCmdBtn:hover { background: #e68a00; }
         .server-controls { margin-bottom: 24px; }
-
-        /* Modern dropdown specific styling definitions */
         .select-group { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
         select { 
             width: 100%; 
@@ -125,12 +123,12 @@
             <p>Status: <span id="serverStatus" class="status-badge offline">Checking...</span> | Current Map: <b id="currentMap">-</b></p>
             <div>
                 <button class="rcon-action-btn" data-cmd="sv_restart 1">🔄 Restart Round</button>
-                <button class="danger" id="softRebootBtn">🔌 Soft Reboot Server (Quit Command)</button>
+                <button id="softRebootBtn">🔌 Soft Reboot Server (Quit Command)</button>
             </div>
         </div>
 
         <div class="grid">
-            <!-- Left Side: Players and Console -->
+            <!-- Left Side: Players & RCON Console -->
             <div>
                 <div class="card">
                     <h3>Active Players</h3>
@@ -158,9 +156,9 @@
                 </div>
             </div>
 
-            <!-- Right Side: Config Toggles and maps.ini Dropdown -->
+            <!-- Right Side: Config Toggles & maps.ini Dropdown -->
             <div class="card">
-                <h3>Server Level Target</h3>
+                <h3>Change Map</h3>
                 <div class="select-group">
                     <select id="mapDropdown">
                         <option value="">Syncing maps.ini data...</option>
