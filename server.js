@@ -8,7 +8,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- CONFIGURATION ---
 const RCON_HOST = process.env.RCON_HOST || 'YOUR_SERVER_IP';
 const RCON_PORT = parseInt(process.env.RCON_PORT || '27015');
 const RCON_PASSWORD = process.env.RCON_PASSWORD || 'YOUR_RCON_PASSWORD';
@@ -17,7 +16,6 @@ const PANEL_USERNAME = process.env.PANEL_USERNAME || 'admin';
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || 'ChangeMe123!'; 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'super-secret-key-change-this';
 
-// --- SESSION STORAGE WITH FILESTORE ---
 app.use(session({
     store: new FileStore({ path: './sessions', ttl: 86400, retries: 0 }),
     secret: SESSION_SECRET,
@@ -26,10 +24,8 @@ app.use(session({
     cookie: { maxAge: 24 * 60 * 60 * 1000, secure: false }
 }));
 
-// --- GOLDSRC ENGINE UDP RCON CONTROLLER ---
 function sendRconCommand(command) {
     return new Promise((resolve, reject) => {
-        // FIXED OPTIONS: tcp: false forces UDP, challenge: true forces the handshake
         const client = new Rcon(RCON_HOST, RCON_PORT, RCON_PASSWORD, {
             tcp: false,
             challenge: true 
@@ -39,7 +35,7 @@ function sendRconCommand(command) {
         const timer = setTimeout(() => {
             try { client.disconnect(); } catch(e) {}
             if (!finished) reject(new Error('UDP RCON Handshake Timed Out'));
-        }, 4000); // 4-second structural delay allowance
+        }, 4000);
 
         client.on('auth', () => {
             client.send(command);
@@ -59,12 +55,7 @@ function sendRconCommand(command) {
             reject(err);
         });
 
-        try {
-            client.connect();
-        } catch (err) {
-            clearTimeout(timer);
-            reject(err);
-        }
+        try { client.connect(); } catch (err) { clearTimeout(timer); reject(err); }
     });
 }
 
@@ -73,45 +64,45 @@ function isAuthenticated(req, res, next) {
     res.status(401).json({ success: false, error: "Unauthorized" });
 }
 
-// --- AUTH ROUTING APIs ---
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (username === PANEL_USERNAME && password === PANEL_PASSWORD) {
         req.session.loggedIn = true;
         res.json({ success: true });
-    } else {
-        res.status(401).json({ success: false, error: "Invalid credentials" });
-    }
+    } else { res.status(401).json({ success: false, error: "Invalid credentials" }); }
 });
 
 app.post('/api/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
 app.get('/api/check-auth', (req, res) => { res.json({ authenticated: !!(req.session && req.session.loggedIn) }); });
 
-// --- PROTECTED RCON ACTION ENDPOINTS ---
 app.post('/api/command', isAuthenticated, async (req, res) => {
     try {
         const output = await sendRconCommand(req.body.command);
         res.json({ success: true, output });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
+    } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
 app.get('/api/status', isAuthenticated, async (req, res) => {
     try {
+        // 1. Fetch Engine telemetry metrics
         const statusOutput = await sendRconCommand('status');
+        
+        // 2. Query AMX map listing which outputs matching maps.ini elements
+        let mapsOutput = "";
+        try {
+            mapsOutput = await sendRconCommand('amx_showmaps');
+        } catch (e) {
+            console.error("AMX showmaps command failed, falling back to default lists:", e.message);
+        }
+
         const lines = statusOutput.split('\n');
         const players = [];
         let hostname = "CS 1.6 Server";
         let map = "Unknown Map";
 
         lines.forEach(line => {
-            // 1. Scrape Hostname
-            if (line.includes('hostname:')) {
-                hostname = line.replace('hostname:', '').trim();
-            }
-
-            // 2. FIXED: Robust String Split Map Extraction to bypass regex validation constraints
+            if (line.includes('hostname:')) hostname = line.replace('hostname:', '').trim();
+            
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
                 if (mapParts.length > 1) {
@@ -120,23 +111,44 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
                 }
             }
             
-            // 3. FIXED: Extract player attributes cleanly via absolute index positions
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
                 players.push({
-                    userid: playerMatch[3],   // Index 3: User ID
-                    name: playerMatch[2],     // Index 2: Player Name
-                    steamid: playerMatch[4]   // Index 4: SteamID
+                    userid: playerMatch[3],
+                    name: playerMatch[2],
+                    steamid: playerMatch[4]
                 });
             }
         });
-        res.json({ success: true, online: true, hostname, map, players });
+
+        // 3. Process the AMX console lines output into clean array options
+        const availableMaps = [];
+        if (mapsOutput) {
+            const mapLines = mapsOutput.split('\n');
+            mapLines.forEach(l => {
+                const cleaned = l.trim();
+                // Filter console line structural noise and empty rows
+                if (cleaned && !cleaned.includes('Maps list') && !cleaned.startsWith(';') && !cleaned.startsWith('//')) {
+                    // Strips out AMX numbered prefix notation variations e.g., "1. de_dust2" -> "de_dust2"
+                    const mapName = cleaned.replace(/^\d+\.\s*/, '').split(' ')[0].trim();
+                    if (mapName.length > 2 && !availableMaps.includes(mapName)) {
+                        availableMaps.push(mapName);
+                    }
+                }
+            });
+        }
+
+        // Fallback default list if amxmodx plugin commands aren't active or setup yet
+        if (availableMaps.length === 0) {
+            availableMaps.push("de_dust2", "de_inferno", "de_nuke", "de_train", "cs_italy");
+        }
+
+        res.json({ success: true, online: true, hostname, map, players, availableMaps });
     } catch (error) {
         res.json({ success: true, online: false, error: error.message });
     }
 });
 
-// --- ROUTE & DIRECTORY FALLBACK ENDPOINTS ---
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/', (req, res) => {
     if (req.session && req.session.loggedIn) res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -144,6 +156,5 @@ app.get('/', (req, res) => {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- STANDBY BOUND PORT ENGINE ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`UDP Rcon panel running on port ${PORT}`));
