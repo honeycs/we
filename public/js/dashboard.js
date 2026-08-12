@@ -16,6 +16,7 @@ async function logout() {
 
 const consoleDiv = document.getElementById('console');
 let mapsLoaded = false;
+let lastKnownMap = "";
 
 async function fetchServerStatus() {
     const statusBadge = document.getElementById('serverStatus');
@@ -32,6 +33,7 @@ async function fetchServerStatus() {
             statusBadge.innerText = "OFFLINE";
             statusBadge.className = "status-badge offline";
             document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">${data.error || 'Connection Failed'}</td></tr>`;
+            updateMapPreview("-");
             return;
         }
 
@@ -40,10 +42,15 @@ async function fetchServerStatus() {
         statusBadge.innerText = "ONLINE";
         statusBadge.className = "status-badge online";
         
-        // Updates live parsed round numbers dynamically inside tracker card
         document.getElementById('tScore').innerText = data.score.t;
         document.getElementById('ctScore').innerText = data.score.ct;
         
+        // Triggers custom snapshot loading logic only when map updates to conserve network bandwidth
+        if (data.map !== lastKnownMap) {
+            lastKnownMap = data.map;
+            updateMapPreview(data.map);
+        }
+
         updatePlayerTable(data.players);
         if (!mapsLoaded && data.availableMaps && data.availableMaps.length > 0) {
             populateMapDropdown(data.availableMaps);
@@ -52,6 +59,29 @@ async function fetchServerStatus() {
         statusBadge.innerText = "OFFLINE";
         statusBadge.className = "status-badge offline";
     }
+}
+
+// Maps level names to high-quality classic CS level overview asset CDN paths dynamically
+function updateMapPreview(mapName) {
+    const imgEl = document.getElementById('mapPreviewImg');
+    if (!imgEl) return;
+
+    if (!mapName || mapName === "-" || mapName === "Unknown Map") {
+        // Fallback crosshair placeholder graphics asset if server is unreachable
+        imgEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://w3.org' width='100' height='70' viewBox='0 0 100 70'><rect width='100' height='70' fill='%230d1117'/><circle cx='50' cy='35' r='10' stroke='%232d3748' stroke-width='2' fill='none'/></svg>";
+        return;
+    }
+
+    const cleanMap = String(mapName).trim().toLowerCase();
+    
+    // Leverages official Steam engine asset archives to grab precise high-quality level card overlays
+    imgEl.src = `https://githubusercontent.com{cleanMap}.jpg`;
+
+    // Catch handler: resets image to generic blueprint style if loading custom community maps missing on git pools
+    imgEl.onerror = () => {
+        imgEl.onerror = null; // Prevents infinite loop triggers
+        imgEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://w3.org' width='100' height='70' viewBox='0 0 100 70'><rect width='100' height='70' fill='%231a1f2c'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='%234a5568' font-size='11' font-family='sans-serif'>CUSTOM MAP</text></svg>";
+    };
 }
 
 function populateMapDropdown(maps) {
