@@ -1,10 +1,11 @@
 {
   "name": "cs-server-webui",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "server.js",
   "dependencies": {
     "express": "^4.19.2",
     "express-session": "^1.18.0",
+    "session-file-store": "^1.5.0",
     "rcon-client": "^4.2.3"
   },
   "scripts": {
