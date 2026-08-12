@@ -12,6 +12,9 @@ const RCON_HOST = process.env.RCON_HOST || 'YOUR_SERVER_IP';
 const RCON_PORT = parseInt(process.env.RCON_PORT || '27015');
 const RCON_PASSWORD = process.env.RCON_PASSWORD || 'YOUR_RCON_PASSWORD';
 
+// Explicit environment variable map filter override for precise control over maps.ini matching
+const MAPS_INI_LIST = process.env.MAPS_INI_LIST || '';
+
 const PANEL_USERNAME = process.env.PANEL_USERNAME || 'admin';
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || 'ChangeMe123!'; 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'super-secret-key-change-this';
@@ -37,17 +40,13 @@ function sendRconCommand(command) {
             if (!finished) reject(new Error('UDP RCON Handshake Timed Out'));
         }, 4000);
 
-        client.on('auth', () => {
-            client.send(command);
-        });
-
+        client.on('auth', () => { client.send(command); });
         client.on('response', (str) => {
             finished = true;
             clearTimeout(timer);
             try { client.disconnect(); } catch(e) {}
             resolve(str || "Done.");
         });
-
         client.on('error', (err) => {
             finished = true;
             clearTimeout(timer);
@@ -84,17 +83,7 @@ app.post('/api/command', isAuthenticated, async (req, res) => {
 
 app.get('/api/status', isAuthenticated, async (req, res) => {
     try {
-        // 1. Fetch Engine telemetry metrics
         const statusOutput = await sendRconCommand('status');
-        
-        // 2. Query AMX map listing which outputs matching maps.ini elements
-        let mapsOutput = "";
-        try {
-            mapsOutput = await sendRconCommand('amx_showmaps');
-        } catch (e) {
-            console.error("AMX showmaps command failed, falling back to default lists:", e.message);
-        }
-
         const lines = statusOutput.split('\n');
         const players = [];
         let hostname = "CS 1.6 Server";
@@ -102,45 +91,25 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
 
         lines.forEach(line => {
             if (line.includes('hostname:')) hostname = line.replace('hostname:', '').trim();
-            
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
                 if (mapParts.length > 1) {
-                    const atParts = mapParts[1].split('at:');
-                    map = atParts[0].trim();
+                    const atParts = mapParts.split('at:');
+                    map = atParts.trim();
                 }
             }
-            
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
-                players.push({
-                    userid: playerMatch[3],
-                    name: playerMatch[2],
-                    steamid: playerMatch[4]
-                });
+                players.push({ userid: playerMatch, name: playerMatch, steamid: playerMatch });
             }
         });
 
-        // 3. Process the AMX console lines output into clean array options
-        const availableMaps = [];
-        if (mapsOutput) {
-            const mapLines = mapsOutput.split('\n');
-            mapLines.forEach(l => {
-                const cleaned = l.trim();
-                // Filter console line structural noise and empty rows
-                if (cleaned && !cleaned.includes('Maps list') && !cleaned.startsWith(';') && !cleaned.startsWith('//')) {
-                    // Strips out AMX numbered prefix notation variations e.g., "1. de_dust2" -> "de_dust2"
-                    const mapName = cleaned.replace(/^\d+\.\s*/, '').split(' ')[0].trim();
-                    if (mapName.length > 2 && !availableMaps.includes(mapName)) {
-                        availableMaps.push(mapName);
-                    }
-                }
-            });
-        }
-
-        // Fallback default list if amxmodx plugin commands aren't active or setup yet
-        if (availableMaps.length === 0) {
-            availableMaps.push("de_dust2", "de_inferno", "de_nuke", "de_train", "cs_italy");
+        // Parse explicit env variable list if present; otherwise fallback to clean core default
+        let availableMaps = [];
+        if (MAPS_INI_LIST.trim() !== '') {
+            availableMaps = MAPS_INI_LIST.split(',').map(m => m.trim()).filter(Boolean);
+        } else {
+            availableMaps = ["de_dust2", "de_inferno", "de_nuke", "de_train", "cs_italy"];
         }
 
         res.json({ success: true, online: true, hostname, map, players, availableMaps });
