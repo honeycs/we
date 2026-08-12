@@ -1,14 +1,9 @@
-// --- 1. AUTH CHECK & LOGOUT GUARD ---
 async function checkAuth() {
     try {
         const res = await fetch('/api/check-auth');
         const data = await res.json();
-        if (!data.authenticated) {
-            window.location.href = '/login.html';
-        }
-    } catch (err) {
-        console.error("Auth verification failed", err);
-    }
+        if (!data.authenticated) { window.location.href = '/login.html'; }
+    } catch (err) { console.error("Auth verification failed", err); }
 }
 checkAuth();
 
@@ -16,25 +11,17 @@ async function logout() {
     try {
         await fetch('/api/logout', { method: 'POST' });
         window.location.href = '/login.html';
-    } catch (err) {
-        console.error("Logout request failed", err);
-    }
+    } catch (err) { console.error("Logout request failed", err); }
 }
 
-// --- 2. DASHBOARD FUNCTIONS ---
 const consoleDiv = document.getElementById('console');
-let mapsLoaded = false; // Prevents select box options from flashing/re-rendering every 5 seconds
+let mapsLoaded = false;
 
 async function fetchServerStatus() {
     const statusBadge = document.getElementById('serverStatus');
     try {
         const res = await fetch('/api/status');
-        
-        if (res.status === 401) {
-            window.location.href = '/login.html';
-            return;
-        }
-
+        if (res.status === 401) { window.location.href = '/login.html'; return; }
         const data = await res.json();
         
         if (!data.success || !data.online) {
@@ -52,18 +39,12 @@ async function fetchServerStatus() {
         statusBadge.className = "status-badge online";
         
         updatePlayerTable(data.players);
-        
-        // Dynamically populates dropdown based on live parsed maps.ini list from server payload
         if (!mapsLoaded && data.availableMaps && data.availableMaps.length > 0) {
             populateMapDropdown(data.availableMaps);
         }
-
     } catch (err) {
-        console.error("Frontend Fetch Error:", err);
         statusBadge.innerText = "OFFLINE";
         statusBadge.className = "status-badge offline";
-        document.getElementById('serverName').innerText = "API Connection Lost";
-        document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">Failed to communicate with Web Backend.</td></tr>`;
     }
 }
 
@@ -101,8 +82,6 @@ function updatePlayerTable(players) {
 
 async function sendCommand(command) {
     consoleDiv.innerHTML += `> ${command}\n`;
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
-
     try {
         const res = await fetch('/api/command', {
             method: 'POST',
@@ -111,9 +90,7 @@ async function sendCommand(command) {
         });
         const data = await res.json();
         consoleDiv.innerHTML += `${data.output || data.error || 'Done.'}\n\n`;
-    } catch (err) {
-        consoleDiv.innerHTML += `Connection Error: ${err.message}\n\n`;
-    }
+    } catch (err) { consoleDiv.innerHTML += `Connection Error: ${err.message}\n\n`; }
     consoleDiv.scrollTop = consoleDiv.scrollHeight;
 }
 
@@ -126,27 +103,21 @@ function sendCustomCommand() {
 
 function escapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// --- 3. EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logoutBtn').addEventListener('click', logout);
     document.getElementById('softRebootBtn').addEventListener('click', () => {
-        if(confirm("Sending 'quit' tells LGSM to auto-reboot the binary. Proceed?")) sendCommand('quit');
+        if(confirm("Sending 'quit' tells LGSM to auto-reboot the engine. Proceed?")) sendCommand('quit');
     });
 
     document.getElementById('executeCmdBtn').addEventListener('click', sendCustomCommand);
-    document.getElementById('customCmd').addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') sendCustomCommand();
-    });
+    document.getElementById('customCmd').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendCustomCommand(); });
 
-    // Execute the level load command target from dropdown value selection
     document.getElementById('changeMapBtn').addEventListener('click', () => {
         const select = document.getElementById('mapDropdown');
-        if (select.value) {
-            sendCommand(`changelevel ${select.value}`);
-        }
+        if (select.value) sendCommand(`changelevel ${select.value}`);
     });
 
     document.body.addEventListener('click', (e) => {
@@ -167,10 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target && e.target.classList.contains('ban-player-btn')) {
             const sid = e.target.getAttribute('data-steamid');
             const name = e.target.getAttribute('data-name');
-            if (sid === "BOT" || sid.includes("HLTV")) {
-                alert("You cannot ban bots or HLTV proxies.");
-                return;
-            }
+            if (sid === "BOT" || sid.includes("HLTV")) return alert("Cannot ban system entities.");
             if (confirm(`Permanently ban ${name}?`)) {
                 sendCommand(`banid 0 ${sid} kick`);
                 sendCommand(`writeid`);
