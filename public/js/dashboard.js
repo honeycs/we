@@ -16,7 +16,6 @@ async function logout() {
 
 const consoleDiv = document.getElementById('console');
 let mapsLoaded = false;
-let lastKnownMap = "";
 
 async function fetchServerStatus() {
     const statusBadge = document.getElementById('serverStatus');
@@ -25,18 +24,14 @@ async function fetchServerStatus() {
         if (res.status === 401) { window.location.href = '/login.html'; return; }
         const data = await res.json();
         
-        // FIXED: Handles error output arrays cleanly without failing interface threads
-        if (!data || !data.success || !data.online) {
-            document.getElementById('serverName').innerText = "Server Offline / Handshake Failed";
+        if (!data.success || !data.online) {
+            document.getElementById('serverName').innerText = data.error || "Server Unreachable";
             document.getElementById('currentMap').innerText = "-";
             document.getElementById('tScore').innerText = "0";
             document.getElementById('ctScore').innerText = "0";
             statusBadge.innerText = "OFFLINE";
             statusBadge.className = "status-badge offline";
-            
-            const errMsg = (data && data.error) ? data.error : "Connection Timeout";
-            document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3" style="color: %23f44336;">Reason: ${escapeHtml(errMsg)}</td></tr>`;
-            updateMapPreview("-");
+            document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">${data.error || 'Connection Failed'}</td></tr>`;
             return;
         }
 
@@ -45,56 +40,28 @@ async function fetchServerStatus() {
         statusBadge.innerText = "ONLINE";
         statusBadge.className = "status-badge online";
         
+        // Updates live parsed round numbers dynamically inside tracker card
         document.getElementById('tScore').innerText = data.score.t;
         document.getElementById('ctScore').innerText = data.score.ct;
         
-        if (data.map !== lastKnownMap) {
-            lastKnownMap = data.map;
-            updateMapPreview(data.map);
-        }
-
         updatePlayerTable(data.players);
         if (!mapsLoaded && data.availableMaps && data.availableMaps.length > 0) {
             populateMapDropdown(data.availableMaps);
         }
     } catch (err) {
-        console.error("Dashboard Fetch Error Exception Context:", err);
         statusBadge.innerText = "OFFLINE";
         statusBadge.className = "status-badge offline";
-        document.getElementById('serverName').innerText = "Panel API Endpoint Unreachable";
-        document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">Failed to talk to Web App Backend.</td></tr>`;
     }
-}
-
-function updateMapPreview(mapName) {
-    const imgEl = document.getElementById('mapPreviewImg');
-    if (!imgEl) return;
-
-    if (!mapName || mapName === "-" || mapName === "Unknown Map") {
-        imgEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://w3.org' width='100' height='70' viewBox='0 0 100 70'><rect width='100' height='70' fill='%230d1117'/><circle cx='50' cy='35' r='10' stroke='%232d3748' stroke-width='2' fill='none'/></svg>";
-        return;
-    }
-
-    const cleanMap = String(mapName).trim().toLowerCase();
-    imgEl.src = `https://githubusercontent.com{cleanMap}.jpg`;
-
-    imgEl.onerror = () => {
-        imgEl.onerror = null; 
-        imgEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://w3.org' width='100' height='70' viewBox='0 0 100 70'><rect width='100' height='70' fill='%231a1f2c'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='%234a5568' font-size='11' font-family='sans-serif'>CUSTOM MAP</text></svg>";
-    };
 }
 
 function populateMapDropdown(maps) {
     const select = document.getElementById('mapDropdown');
-    if (!select) return;
     select.innerHTML = maps.map(map => `<option value="${escapeHtml(map)}">${escapeHtml(map)}</option>`).join('');
     mapsLoaded = true;
 }
 
 function updatePlayerTable(players) {
     const tbody = document.getElementById('playerTableBody');
-    if (!tbody) return;
-    
     if (!players || players.length === 0) {
         tbody.innerHTML = `<tr><td colspan="3">Server is empty.</td></tr>`;
         return;
@@ -135,7 +102,7 @@ async function sendCommand(command) {
 
 function sendCustomCommand() {
     const input = document.getElementById('customCmd');
-    if (!input || !input.value.trim()) return;
+    if (!input.value.trim()) return;
     sendCommand(input.value);
     input.value = '';
 }
@@ -156,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('changeMapBtn').addEventListener('click', () => {
         const select = document.getElementById('mapDropdown');
-        if (select && select.value) sendCommand(`changelevel ${select.value}`);
+        if (select.value) sendCommand(`changelevel ${select.value}`);
     });
 
     document.body.addEventListener('click', (e) => {
