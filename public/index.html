@@ -97,6 +97,20 @@
         #executeCmdBtn { margin: 0; border-radius: 0 6px 6px 0; background: #ff9800; color: #12141c; border: none; font-weight: 700; }
         #executeCmdBtn:hover { background: #e68a00; }
         .server-controls { margin-bottom: 24px; }
+
+        /* Modern dropdown specific styling definitions */
+        .select-group { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+        select { 
+            width: 100%; 
+            padding: 12px; 
+            background: #0d1117; 
+            border: 1px solid #2d3748; 
+            color: #fff; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            font-weight: 600;
+        }
+        select:focus { outline: none; border-color: #ff9800; }
     </style>
 </head>
 <body>
@@ -144,16 +158,17 @@
                 </div>
             </div>
 
-            <!-- Right Side: Map & Fast Settings -->
+            <!-- Right Side: Config Toggles and maps.ini Dropdown -->
             <div class="card">
-                <h3>Quick Map Change</h3>
-                <button class="rcon-action-btn" data-cmd="changelevel de_dust2">de_dust2</button>
-                <button class="rcon-action-btn" data-cmd="changelevel de_inferno">de_inferno</button>
-                <button class="rcon-action-btn" data-cmd="changelevel de_nuke">de_nuke</button>
-                <button class="rcon-action-btn" data-cmd="changelevel de_train">de_train</button>
-                <button class="rcon-action-btn" data-cmd="changelevel cs_italy">cs_italy</button>
+                <h3>Server Level Target</h3>
+                <div class="select-group">
+                    <select id="mapDropdown">
+                        <option value="">Syncing maps.ini data...</option>
+                    </select>
+                    <button id="changeMapBtn" style="margin: 4px 0 0 0; width: 100%; background: #ff9800; color: #12141c; border: none; font-weight: 700;">🔄 Execute Map Change</button>
+                </div>
 
-                <h3 style="margin-top:24px;">Config Toggles</h3>
+                <h3 style="margin-top:32px;">Config Toggles</h3>
                 <button class="rcon-action-btn" data-cmd="mp_friendlyfire 1">FF: ON</button>
                 <button class="rcon-action-btn" data-cmd="mp_friendlyfire 0">FF: OFF</button>
                 <button class="rcon-action-btn" data-cmd="pausable 1">Pause: Allowed</button>
@@ -162,7 +177,6 @@
         </div>
     </div>
 
-    <!-- External safe JavaScript layer to isolate code from inline validation rules -->
     <script src="/js/dashboard.js"></script>
 </body>
 </html>
