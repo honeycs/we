@@ -29,17 +29,17 @@ app.use(session({
 // --- GOLDSRC ENGINE UDP RCON CONTROLLER ---
 function sendRconCommand(command) {
     return new Promise((resolve, reject) => {
-        // Option 'tcp: false' explicitly switches packet delivery to UDP datagrams
+        // FIXED OPTIONS: tcp: false forces UDP, challenge: true forces the handshake
         const client = new Rcon(RCON_HOST, RCON_PORT, RCON_PASSWORD, {
             tcp: false,
-            challenge: false
+            challenge: true 
         });
         let finished = false;
 
         const timer = setTimeout(() => {
             try { client.disconnect(); } catch(e) {}
-            if (!finished) reject(new Error('UDP RCON Connection Timed Out'));
-        }, 3000);
+            if (!finished) reject(new Error('UDP RCON Handshake Timed Out'));
+        }, 4000); // 4-second structural delay allowance
 
         client.on('auth', () => {
             client.send(command);
@@ -111,19 +111,22 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
                 hostname = line.replace('hostname:', '').trim();
             }
 
-            // 2. Safe Map RegEx Extractor targeting GoldSrc structural variations
-            const mapMatch = line.match(/map\s+:\s+([^\s]+)\s+at/);
-            if (mapMatch && mapMatch[1]) {
-                map = mapMatch[1].trim();
+            // 2. FIXED: Robust String Split Map Extraction to bypass regex validation constraints
+            if (line.includes('map     :')) {
+                const mapParts = line.split('map     :');
+                if (mapParts.length > 1) {
+                    const atParts = mapParts[1].split('at:');
+                    map = atParts[0].trim();
+                }
             }
             
-            // 3. Regular Expression extraction pattern matching active telemetry elements
+            // 3. FIXED: Extract player attributes cleanly via absolute index positions
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
                 players.push({
-                    userid: playerMatch[3],   // Index 3 extracts the precise numeric user ID 
-                    name: playerMatch[2],     // Index 2 parses the literal string player name
-                    steamid: playerMatch[4]   // Index 4 captures authorization network identifier
+                    userid: playerMatch[3],   // Index 3: User ID
+                    name: playerMatch[2],     // Index 2: Player Name
+                    steamid: playerMatch[4]   // Index 4: SteamID
                 });
             }
         });
