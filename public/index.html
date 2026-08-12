@@ -12,3 +12,198 @@ async function logout() {
     await fetch('/api/logout', { method: 'POST' });
     window.location.href = '/login.html';
 }
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CS 1.6 Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 20px; }
+        .card { background: #262626; border: 1px solid #333; padding: 20px; border-radius: 6px; }
+        h1, h2, h3 { margin-top: 0; color: #fff; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
+        .online { background: #2e7d32; color: #fff; }
+        .offline { background: #c62828; color: #fff; }
+        button { background: #444; color: #fff; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; margin: 4px; }
+        button:hover { background: #555; }
+        button.danger { background: #c62828; }
+        button.danger:hover { background: #b71c1c; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #333; }
+        th { background: #333; }
+        #console { background: #000; color: #00ff00; font-family: monospace; padding: 15px; height: 180px; overflow-y: auto; border-radius: 4px; margin-top: 15px; white-space: pre-wrap; }
+        .server-controls { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CS 1.6 Server Commander</h1>
+        
+        <div class="card server-controls">
+            <h2 id="serverName">Fetching server info...</h2>
+            <p>Status: <span id="serverStatus" class="status-badge offline">Checking...</span> | Current Map: <b id="currentMap">-</b></p>
+            <div>
+                <button onclick="sendCommand('sv_restart 1')">🔄 Restart Round</button>
+                <button class="danger" onclick="confirmRestart()">🔌 Soft Reboot Server (Quit Command)</button>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Left Side: Players and Console -->
+            <div>
+                <div class="card">
+                    <h3>Active Players</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>SteamID</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="playerTableBody">
+                            <tr><td colspan="3">No players online or server unreachable.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <h3>Live RCON Console</h3>
+                    <div id="console"></div>
+                    <div style="margin-top: 10px; display: flex;">
+                        <input type="text" id="customCmd" style="flex: 1; padding: 8px; background: #333; border: 1px solid #444; color: #fff; border-radius: 4px 0 0 4px;" placeholder="Type RCON command (e.g., mp_timelimit 30)...">
+                        <button style="margin: 0; border-radius: 0 4px 4px 0;" onclick="sendCustomCommand()">Execute</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Map & Fast Settings -->
+            <div class="card">
+                <h3>Quick Map Change</h3>
+                <button onclick="sendCommand('changelevel de_dust2')">de_dust2</button>
+                <button onclick="sendCommand('changelevel de_inferno')">de_inferno</button>
+                <button onclick="sendCommand('changelevel de_nuke')">de_nuke</button>
+                <button onclick="sendCommand('changelevel de_train')">de_train</button>
+                <button onclick="sendCommand('changelevel cs_italy')">cs_italy</button>
+
+                <h3 style="margin-top:20px;">Config Toggles</h3>
+                <button onclick="sendCommand('mp_friendlyfire 1')">FF: ON</button>
+                <button onclick="sendCommand('mp_friendlyfire 0')">FF: OFF</button>
+                <button onclick="sendCommand('pausable 1')">Pause: Allowed</button>
+                <button onclick="sendCommand('pausable 0')">Pause: Blocked</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const consoleDiv = document.getElementById('console');
+
+        // Fetch Server Data and Player list every 5 seconds
+        async function fetchServerStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                const statusBadge = document.getElementById('serverStatus');
+                if (data.online) {
+                    document.getElementById('serverName').innerText = data.hostname;
+                    document.getElementById('currentMap').innerText = data.map;
+                    statusBadge.innerText = "ONLINE";
+                    statusBadge.className = "status-badge online";
+                    
+                    updatePlayerTable(data.players);
+                } else {
+                    document.getElementById('serverName').innerText = "Server Unreachable";
+                    document.getElementById('currentMap').innerText = "-";
+                    statusBadge.innerText = "OFFLINE";
+                    statusBadge.className = "status-badge offline";
+                    document.getElementById('playerTableBody').innerHTML = `<tr><td colspan="3">Failed to sync with game server.</td></tr>`;
+                }
+            } catch (err) {
+                console.error("Status Sync Error:", err);
+            }
+        }
+
+        function updatePlayerTable(players) {
+            const tbody = document.getElementById('playerTableBody');
+            if (players.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3">Server is empty.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = players.map(p => `
+                <tr>
+                    <td><b>${escapeHtml(p.name)}</b></td>
+                    <td><code>${p.steamid}</code></td>
+                    <td>
+                        <button onclick="kickPlayer('${p.userid}', '${escapeHtml(p.name)}')">Kick</button>
+                        <button class="danger" onclick="banPlayer('${p.steamid}', '${escapeHtml(p.name)}')">Ban</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function sendCommand(command) {
+            consoleDiv.innerHTML += `> ${command}\n`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+
+            try {
+                const res = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command })
+                });
+                const data = await res.json();
+                consoleDiv.innerHTML += `${data.output || data.error || 'Done.'}\n\n`;
+            } catch (err) {
+                consoleDiv.innerHTML += `Connection Error: ${err.message}\n\n`;
+            }
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function sendCustomCommand() {
+            const input = document.getElementById('customCmd');
+            if (!input.value.trim()) return;
+            sendCommand(input.value);
+            input.value = '';
+        }
+
+        function kickPlayer(userId, name) {
+            if(confirm(`Are you sure you want to kick ${name}?`)) {
+                sendCommand(`kick #${userId}`);
+                setTimeout(fetchServerStatus, 1000);
+            }
+        }
+
+        function banPlayer(steamId, name) {
+            if(steamId === "BOT" || steamId.includes("HLTV")) {
+                alert("You cannot ban bots/HLTV via SteamID.");
+                return;
+            }
+            if(confirm(`Are you sure you want to PERMANENTLY ban ${name}?`)) {
+                sendCommand(`banid 0 ${steamId} kick`);
+                sendCommand(`writeid`); // Saves ban to list
+                setTimeout(fetchServerStatus, 1000);
+            }
+        }
+
+        function confirmRestart() {
+            if(confirm("Sending 'quit' will shut down the game engine. Ensure your hosting script includes an auto-restart loop, or the server will remain down! Proceed?")) {
+                sendCommand('quit');
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        // Run loops
+        fetchServerStatus();
+        setInterval(fetchServerStatus, 5000);
+    </script>
+</body>
+</html>
