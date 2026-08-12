@@ -6,110 +6,67 @@
     <style>
         body { 
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-            /* Classic CS 1.6 Main Menu Artwork background */
-            background: #0b0d11 url('https://gamebanana.com') no-repeat center center fixed; 
-            background-size: cover;
+            background: #12141c; 
+            background-image: linear-gradient(rgba(18, 20, 28, 0.95), rgba(18, 20, 28, 0.95)), 
+                              radial-gradient(#ff9800 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
             color: #fff; 
             display: flex; 
             align-items: center; 
-            justify-content: flex-start; /* Aligns menu to the left just like the real game */
+            justify-content: center; 
             height: 100vh; 
             margin: 0; 
-            padding-left: 10%; /* Nostalgic offset from the left edge */
         }
-        
-        /* The classic semi-transparent CS 1.6 Game Menu layout */
         .login-card { 
-            background: rgba(44, 48, 56, 0.75); 
-            backdrop-filter: blur(4px);
-            padding: 30px; 
-            border-radius: 4px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6); 
-            width: 280px; 
-            border: 1px solid rgba(90, 96, 108, 0.8); 
+            background: #1a1f2c; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5); 
+            width: 320px; 
+            border: 1px solid #2d3748; 
         }
-
-        /* Classic Counter-Strike Font look */
-        h2 { 
-            margin-top: 0; 
-            text-align: left; 
-            color: #ff9800; 
-            font-size: 20px; 
-            font-weight: 700; 
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            border-bottom: 1px solid rgba(255,152,0,0.3);
-            padding-bottom: 8px;
-            margin-bottom: 20px;
-        }
-
-        .input-box {
-            margin-bottom: 16px;
-        }
-
-        label {
-            display: block;
-            font-size: 11px;
-            color: #a0aec0;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
-
-        /* Classic grey-boxed styling matching old WON/Steam menus */
+        h2 { margin-top: 0; text-align: center; color: #ff9800; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
         input { 
             width: 100%; 
-            padding: 10px; 
-            background: #14171c; 
-            border: 1px solid #4a5260; 
+            padding: 12px; 
+            margin: 12px 0; 
+            background: #0d1117; 
+            border: 1px solid #2d3748; 
             color: #fff; 
-            border-radius: 3px; 
+            border-radius: 6px; 
             box-sizing: border-box; 
-            font-size: 13px;
-            font-family: monospace;
+            font-size: 14px;
             transition: border-color 0.2s;
         }
         input:focus { outline: none; border-color: #ff9800; }
-
-        /* The signature Orange action buttons */
         button { 
             width: 100%; 
-            padding: 11px; 
+            padding: 12px; 
             background: #ff9800; 
-            color: #0b0d11; 
+            color: #12141c; 
             font-weight: 700; 
             border: none; 
-            border-radius: 3px; 
+            border-radius: 6px; 
             cursor: pointer; 
-            font-size: 13px; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: background 0.2s, transform 0.1s;
-            margin-top: 10px;
+            font-size: 15px; 
+            transition: background 0.2s;
         }
         button:hover { background: #e68a00; }
-        button:active { transform: scale(0.98); }
-
-        #errorMsg { color: #ff5252; text-align: center; font-size: 12px; margin-top: 12px; font-weight: 600; }
+        #errorMsg { color: #ff5252; text-align: center; font-size: 13px; margin-top: 12px; font-weight: 500; }
     </style>
 </head>
 <body>
     <div class="login-card">
-        <h2>Connect to Panel</h2>
+        <h2>CS 1.6 WebUI Login</h2>
         <form id="loginForm">
-            <div class="input-box">
-                <label for="username">User Identity</label>
-                <input type="text" id="username" placeholder="admin" required autocomplete="username">
-            </div>
-            <div class="input-box">
-                <label for="password">Access Token</label>
-                <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
-            </div>
-            <button type="submit">Establish Session</button>
+            <input type="text" id="username" placeholder="Username" required autocomplete="username">
+            <input type="password" id="password" placeholder="Password" required autocomplete="current-password">
+            <button type="submit">Access Dashboard</button>
         </form>
         <div id="errorMsg"></div>
     </div>
 
+    <!-- Login scripts bundled into a safe, clean execution model to keep inline CSP filters happy -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('loginForm');
