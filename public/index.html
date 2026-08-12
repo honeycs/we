@@ -96,31 +96,7 @@
         #customCmd:focus { outline: none; border-color: #4a5568; }
         #executeCmdBtn { margin: 0; border-radius: 0 6px 6px 0; background: #ff9800; color: #12141c; border: none; font-weight: 700; }
         #executeCmdBtn:hover { background: #e68a00; }
-        
-        /* Modifying status layout to cleanly encapsulate the preview card element wrapper */
         .server-controls { margin-bottom: 24px; }
-        .status-flex-wrapper { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-        @media (max-width: 600px) { .status-flex-wrapper { flex-direction: column; align-items: flex-start; } }
-        
-        /* Map thumbnail image custom display cards layout styling */
-        .map-preview-box {
-            width: 120px;
-            height: 70px;
-            border-radius: 6px;
-            border: 1px solid #2d3748;
-            background: #0d1117;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-        .map-preview-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
         .select-group { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
         select { 
             width: 100%; 
@@ -176,23 +152,16 @@
         </div>
         
         <div class="card server-controls">
-            <div class="status-flex-wrapper">
-                <div>
-                    <h2 id="serverName">Fetching server info...</h2>
-                    <p>Status: <span id="serverStatus" class="status-badge offline">Checking...</span> | Current Map: <b id="currentMap">-</b></p>
-                </div>
-                <!-- Dynamic custom thumbnail image card allocation placeholder container -->
-                <div class="map-preview-box">
-                    <img id="mapPreviewImg" src="data:image/svg+xml;utf8,<svg xmlns='http://w3.org' width='100' height='70' viewBox='0 0 100 70'><rect width='100' height='70' fill='%230d1117'/><circle cx='50' cy='35' r='10' stroke='%232d3748' stroke-width='2' fill='none'/></svg>" alt="Map Preview">
-                </div>
-            </div>
-            <div style="margin-top: 16px;">
+            <h2 id="serverName">Fetching server info...</h2>
+            <p>Status: <span id="serverStatus" class="status-badge offline">Checking...</span> | Current Map: <b id="currentMap">-</b></p>
+            <div>
                 <button class="rcon-action-btn" data-cmd="sv_restart 1">🔄 Restart Round</button>
                 <button id="softRebootBtn">🔌 Soft Reboot Server (Quit Command)</button>
             </div>
         </div>
 
         <div class="grid">
+            <!-- Left Side -->
             <div>
                 <div class="card">
                     <h3>Active Players</h3>
@@ -220,7 +189,28 @@
                 </div>
             </div>
 
+            <!-- Right Side -->
             <div class="card">
                 <h3>Change Map</h3>
                 <div class="select-group">
                     <select id="mapDropdown">
+                        <option value="">Syncing maps.ini data...</option>
+                    </select>
+                    <button id="changeMapBtn" style="margin: 4px 0 0 0; width: 100%; background: #ff9800; color: #12141c; border: none; font-weight: 700;">🔄 Execute Map Change</button>
+                </div>
+
+                <h3 style="margin-top:32px;">Config Toggles</h3>
+                <div class="config-btn-stack">
+                    <button class="rcon-action-btn" data-cmd="exec csserver.cfg">⚙️ csserver</button>
+                    <button class="rcon-action-btn" data-cmd="exec mix.cfg">⚔️ Mix</button>
+                    <button class="rcon-action-btn" data-cmd="exec nl.cfg">🇪🇺 NL</button>
+                    <button class="rcon-action-btn" data-cmd="exec league.cfg">🏆 League</button>
+                    <button class="rcon-action-btn" data-cmd="exec league.cfg">⏱️ LeagueOT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>
