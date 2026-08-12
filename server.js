@@ -12,7 +12,7 @@ const RCON_HOST = process.env.RCON_HOST || 'YOUR_SERVER_IP';
 const RCON_PORT = parseInt(process.env.RCON_PORT || '27015');
 const RCON_PASSWORD = process.env.RCON_PASSWORD || 'YOUR_RCON_PASSWORD';
 
-// Explicit environment variable map filter override for precise control over maps.ini matching
+// Environment variable map list override
 const MAPS_INI_LIST = process.env.MAPS_INI_LIST || '';
 
 const PANEL_USERNAME = process.env.PANEL_USERNAME || 'admin';
@@ -90,21 +90,30 @@ app.get('/api/status', isAuthenticated, async (req, res) => {
         let map = "Unknown Map";
 
         lines.forEach(line => {
-            if (line.includes('hostname:')) hostname = line.replace('hostname:', '').trim();
+            if (line.includes('hostname:')) {
+                hostname = line.replace('hostname:', '').trim();
+            }
+            
+            // FIXED: Added array index targeting to fix split error
             if (line.includes('map     :')) {
                 const mapParts = line.split('map     :');
                 if (mapParts.length > 1) {
-                    const atParts = mapParts.split('at:');
-                    map = atParts.trim();
+                    const atParts = mapParts[1].split('at:');
+                    map = atParts[0].trim();
                 }
             }
+            
+            // FIXED: Specified array indices explicitly to isolate structural variables
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
-                players.push({ userid: playerMatch, name: playerMatch, steamid: playerMatch });
+                players.push({ 
+                    userid: playerMatch[3], 
+                    name: playerMatch[2], 
+                    steamid: playerMatch[4] 
+                });
             }
         });
 
-        // Parse explicit env variable list if present; otherwise fallback to clean core default
         let availableMaps = [];
         if (MAPS_INI_LIST.trim() !== '') {
             availableMaps = MAPS_INI_LIST.split(',').map(m => m.trim()).filter(Boolean);
