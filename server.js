@@ -1,7 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-const { Rcon } = require('rcon-client');
+const Rcon = require('node-rcon'); // Swapped to node-rcon for UDP
 const path = require('path');
 
 const app = express();
@@ -24,26 +24,38 @@ app.use(session({
     cookie: { maxAge: 24 * 60 * 60 * 1000, secure: false }
 }));
 
-// Rcon connection with strict built-in options
-async function sendRconCommand(command) {
-    const rcon = new Rcon({ 
-        host: RCON_HOST, 
-        port: RCON_PORT, 
-        password: RCON_PASSWORD,
-        timeout: 3000 
-    });
-    await rcon.connect();
-    const response = await rcon.send(command);
-    await rcon.end();
-    return response;
-}
-
-// Hard fallback timer ensuring an instant JSON response no matter what
-function forceTimeout(promise, ms = 3000) {
+// Safe UDP RCON Execution Wrapper
+function sendRconCommand(command) {
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Forced RCON Timeout')), ms);
-        promise.then(res => { clearTimeout(timer); resolve(res); })
-               .catch(err => { clearTimeout(timer); reject(err); });
+        // Instantiate modern GoldSrc UDP protocol instance
+        const rcon = new Rcon(RCON_HOST, RCON_PORT, RCON_PASSWORD);
+        let executed = false;
+
+        // Force a safety timeout window so web threads never hang
+        const timer = setTimeout(() => {
+            rcon.disconnect();
+            if (!executed) reject(new Error('UDP RCON Query Timed Out'));
+        }, 3000);
+
+        rcon.on('auth', () => {
+            rcon.send(command);
+        });
+
+        rcon.on('response', (str) => {
+            executed = true;
+            clearTimeout(timer);
+            rcon.disconnect();
+            resolve(str || "Done.");
+        });
+
+        rcon.on('error', (err) => {
+            executed = true;
+            clearTimeout(timer);
+            rcon.disconnect();
+            reject(err);
+        });
+
+        rcon.connect();
     });
 }
 
@@ -67,7 +79,7 @@ app.get('/api/check-auth', (req, res) => { res.json({ authenticated: !!(req.sess
 
 app.post('/api/command', isAuthenticated, async (req, res) => {
     try {
-        const output = await forceTimeout(sendRconCommand(req.body.command), 3000);
+        const output = await sendRconCommand(req.body.command);
         res.json({ success: true, output });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -76,23 +88,26 @@ app.post('/api/command', isAuthenticated, async (req, res) => {
 
 app.get('/api/status', isAuthenticated, async (req, res) => {
     try {
-        const statusOutput = await forceTimeout(sendRconCommand('status'), 3000);
+        const statusOutput = await sendRconCommand('status');
         const lines = statusOutput.split('\n');
         const players = [];
         let hostname = "CS 1.6 Server";
-        let map = "de_dust2";
+        let map = "Unknown Map";
 
         lines.forEach(line => {
             if (line.startsWith('hostname:')) hostname = line.replace('hostname:', '').trim();
             if (line.startsWith('map     :')) map = line.substring(9, line.indexOf('at:')).trim();
             const playerMatch = line.match(/^\s*#\s*(\d+)\s+"(.+?)"\s+(\d+)\s+(STEAM_\d+:\d+:\d+|VALVE_\d+:\d+:\d+|BOT|HLTV)\s+/);
             if (playerMatch) {
-                players.push({ name: playerMatch[2], userid: playerMatch[3], steamid: playerMatch[4] });
+                players.push({
+                    userid: playerMatch[1],
+                    name: playerMatch[2],
+                    steamid: playerMatch[4]
+                });
             }
         });
         res.json({ success: true, online: true, hostname, map, players });
     } catch (error) {
-        // This will now instantly return online: false instead of freezing your page
         res.json({ success: true, online: false, error: error.message });
     }
 });
@@ -105,4 +120,4 @@ app.get('/', (req, res) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Running on port ${PORT}`));
+app.listen(PORT, () => console.log(`UDP Engine panel running on port ${PORT}`));
