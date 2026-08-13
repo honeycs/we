@@ -202,19 +202,7 @@
                     <button id="changeMapBtn" style="margin: 4px 0 0 0; width: 100%; background: #ff9800; color: #12141c; border: none; font-weight: 700;">🔄 Execute Map Change</button>
                 </div>
 
-                <h3 style="margin-top:32px;">Config Toggles</h3>
-                <div class="config-btn-stack">
-                    <button class="rcon-action-btn" data-cmd="exec csserver.cfg">⚙️ csserver</button>
-                    <button class="rcon-action-btn" data-cmd="exec mix.cfg">⚔️ Mix</button>
-                    <button class="rcon-action-btn" data-cmd="exec nl.cfg">🇪🇺 NL</button>
-                    <button class="rcon-action-btn" data-cmd="exec league.cfg">🏆 League</button>
-                    <button class="rcon-action-btn" data-cmd="exec league.cfg">⏱️ LeagueOT</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- SERVER PASSWORD MODIFIER COMPONENT WITH CONFIG DROPDOWN -->
+                <!-- SERVER PASSWORD MODIFIER COMPONENT WITH CONFIG DROPDOWN -->
 <h3 style="margin-top:32px;">Change Server Password</h3>
 <div class="password-input-wrapper">
     <select id="configPassDropdown">
@@ -227,6 +215,20 @@
     <input type="text" id="serverPassInput" placeholder="Enter new join password..." style="margin-top: 8px; width: 100%; box-sizing: border-box;">
     <button id="submitPassBtn" style="margin: 8px 0 0 0; width: 100%; background: #ff9800; color: #12141c; border: none; font-weight: 700;">🔑 Apply Password</button>
 </div>
+
+
+                <h3 style="margin-top:32px;">Config Toggles</h3>
+                <div class="config-btn-stack">
+                    <button class="rcon-action-btn" data-cmd="exec csserver.cfg">⚙️ csserver</button>
+                    <button class="rcon-action-btn" data-cmd="exec mix.cfg">⚔️ Mix</button>
+                    <button class="rcon-action-btn" data-cmd="exec nl.cfg">🇪🇺 NL</button>
+                    <button class="rcon-action-btn" data-cmd="exec league.cfg">🏆 League</button>
+                    <button class="rcon-action-btn" data-cmd="exec league.cfg">⏱️ LeagueOT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
 
     <script src="/js/dashboard.js"></script>
