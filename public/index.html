@@ -214,6 +214,21 @@
         </div>
     </div>
 
+    <!-- SERVER PASSWORD MODIFIER COMPONENT WITH CONFIG DROPDOWN -->
+<h3 style="margin-top:32px;">Change Server Password</h3>
+<div class="password-input-wrapper">
+    <select id="configPassDropdown">
+        <option value="csserver.cfg">⚙️ csserver.cfg</option>
+        <option value="mix.cfg">⚔️ mix.cfg</option>
+        <option value="nl.cfg">🇪🇺 nl.cfg</option>
+        <option value="league.cfg">🏆 league.cfg</option>
+        <option value="leagueot.cfg">⏱️ leagueot.cfg</option>
+    </select>
+    <input type="text" id="serverPassInput" placeholder="Enter new join password..." style="margin-top: 8px; width: 100%; box-sizing: border-box;">
+    <button id="submitPassBtn" style="margin: 8px 0 0 0; width: 100%; background: #ff9800; color: #12141c; border: none; font-weight: 700;">🔑 Apply Password</button>
+</div>
+
+
     <script src="/js/dashboard.js"></script>
 </body>
 </html>
