@@ -163,3 +163,29 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchServerStatus();
     setInterval(fetchServerStatus, 5000);
 });
+
+// 🟢 PASTE THE FUNCTION OUTSIDE THE LOOPS AT THE VERY BOTTOM OF DASHBOARD.JS:
+    async function submitNewPassword() {
+        const configSelect = document.getElementById('configPassDropdown');
+        const input = document.getElementById('serverPassInput');
+        
+        const targetConfig = configSelect.value;
+        const pass = input.value.trim();
+        
+        if (!pass) return alert("Password entry cannot be blank.");
+
+        consoleDiv.innerHTML += `> Deploying password update payload to [${targetConfig}]...\n`;
+        try {
+            const res = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetConfig: targetConfig, newPassword: pass })
+            });
+            const data = await res.json();
+            consoleDiv.innerHTML += `${data.message || data.error}\n\n`;
+            if(data.success) input.value = '';
+        } catch (err) {
+            consoleDiv.innerHTML += `Password Patch Error: ${err.message}\n\n`;
+        }
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
