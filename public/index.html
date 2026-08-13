@@ -216,6 +216,18 @@
     <button id="submitPassBtn" style="margin: 8px 0 0 0; width: 100%; background: #ff9800; color: #12141c; border: none; font-weight: 700;">🔑 Apply Password</button>
 </div>
 
+                <!-- UNBAN UTILITY COMPONENT BOX -->
+<h3 style="margin-top:32px;">Lift Server Ban</h3>
+<div class="unban-input-wrapper" style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+    <select id="unbanTypeDropdown" style="width: 100%; padding: 12px; background: #0d1117; border: 1px solid #2d3748; color: #fff; border-radius: 6px; font-size: 14px; font-weight: 600;">
+        <option value="steamid">🆔 Unban by SteamID</option>
+        <option value="ip">🌐 Unban by IP Address</option>
+    </select>
+    <input type="text" id="unbanTargetInput" placeholder="STEAM_0:X:YYYY or IP address..." style="padding: 12px; background: #0d1117; border: 1px solid #2d3748; color: #fff; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box;">
+    <button id="submitUnbanBtn" style="margin: 4px 0 0 0; width: 100%; background: #4caf50; color: #12141c; border: none; font-weight: 700; padding: 10px 16px; cursor: pointer; border-radius: 6px; font-size: 14px;">🔓 Lift Restriction</button>
+</div>
+
+
 
                 <h3 style="margin-top:32px;">Config Toggles</h3>
                 <div class="config-btn-stack">
