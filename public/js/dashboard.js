@@ -137,7 +137,13 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('submitPassBtn').addEventListener('click', submitNewPassword);
 document.getElementById('serverPassInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') submitNewPassword(); });
 
+    // Listeners for the Unban Form Component
+    const submitUnbanBtn = document.getElementById('submitUnbanBtn');
+    const unbanTargetInput = document.getElementById('unbanTargetInput');
+    if (submitUnbanBtn) submitUnbanBtn.addEventListener('click', submitUnbanRequest);
+    if (unbanTargetInput) unbanTargetInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitUnbanRequest(); });
 
+    
     document.body.addEventListener('click', (e) => {
         if (e.target && e.target.classList.contains('rcon-action-btn')) {
             const cmd = e.target.getAttribute('data-cmd');
