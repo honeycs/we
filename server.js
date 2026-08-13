@@ -79,6 +79,45 @@ app.post('/api/command', isAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
+// ENDPOINT: Chains memory execution parameters and flushes specific target file updates over UDP
+app.post('/api/change-password', isAuthenticated, async (req, res) => {
+    const { targetConfig, newPassword } = req.body;
+    
+    if (!targetConfig || !newPassword) {
+        return res.status(400).json({ success: false, error: "Missing required configuration mapping parameters." });
+    }
+
+    // Safety array matrix filtering to enforce strict file name bounds
+    const allowedConfigs = ['csserver.cfg', 'nl.cfg', 'mix.cfg', 'league.cfg', 'leagueot.cfg'];
+    if (!allowedConfigs.includes(targetConfig)) {
+        return res.status(400).json({ success: false, error: "Invalid target file mapping block detected." });
+    }
+
+    try {
+        // 1. Sets active server join password restrictions instantly in RAM if applying to current runtime
+        if (targetConfig === 'csserver.cfg') {
+            await sendRconCommand(`sv_password "${newPassword}"`);
+        }
+
+        // 2. Instructs the underlying engine script to read the selected configuration macro 
+        await sendRconCommand(`exec ${targetConfig}`);
+        
+        // 3. Modifies the memory value segment inside that target configuration context
+        await sendRconCommand(`sv_password "${newPassword}"`);
+        
+        // 4. Force commands the GoldSource engine file tree buffer arrays to commit updates back to disk hard
+        const writeFeedback = await sendRconCommand('writecfg');
+
+        res.json({ 
+            success: true, 
+            message: `Password processed cleanly. Updated [${targetConfig}] context. Engine response trace: ${writeFeedback}` 
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
 // NEW ENDPOINT: Scrapes top player statistics directly from AMX Mod X rank engine records
 app.get('/api/stats', isAuthenticated, async (req, res) => {
     try {
