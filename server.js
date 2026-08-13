@@ -117,6 +117,40 @@ app.post('/api/change-password', isAuthenticated, async (req, res) => {
     }
 });
 
+// NEW ENDPOINT: Processes unban instructions natively using GoldSrc console write commands over UDP
+app.post('/api/unban', isAuthenticated, async (req, res) => {
+    const { type, target } = req.body;
+    
+    if (!type || !target) {
+        return res.status(400).json({ success: false, error: "Missing type or target value parameters." });
+    }
+
+    try {
+        let executionOutput = "";
+        let saveOutput = "";
+
+        if (type === 'steamid') {
+            // GoldSrc syntax to remove SteamID and save updated list back to file (listip.cfg/banned.cfg)
+            executionOutput = await sendRconCommand(`removeid ${target}`);
+            saveOutput = await sendRconCommand('writeid');
+        } else if (type === 'ip') {
+            // GoldSrc syntax to remove IP ban restriction layer entries
+            executionOutput = await sendRconCommand(`removeip ${target}`);
+            saveOutput = await sendRconCommand('writeip');
+        } else {
+            return res.status(400).json({ success: false, error: "Invalid lookup block parameter." });
+        }
+
+        res.json({ 
+            success: true, 
+            message: `Unban execution processed cleanly. Engine traces: ${executionOutput.trim()} | Saved changes: ${saveOutput.trim()}` 
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
 
 // NEW ENDPOINT: Scrapes top player statistics directly from AMX Mod X rank engine records
 app.get('/api/stats', isAuthenticated, async (req, res) => {
