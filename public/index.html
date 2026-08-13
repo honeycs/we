@@ -130,6 +130,68 @@
         .team-ct { color: #5c8cb3; text-shadow: 0 0 8px rgba(92,140,179,0.3); }
         .score-display { font-size: 42px; font-weight: 800; font-family: monospace; line-height: 1; }
         .score-divider { font-size: 28px; color: #4a5568; font-weight: 700; }
+        .container { 
+            max-width: 1100px; 
+            margin: 0 auto; 
+            width: 100%; 
+            box-sizing: border-box; 
+        }
+        .card { 
+            box-sizing: border-box; 
+            width: 100%; 
+        }
+        .table-responsive-wrapper { 
+            width: 100%; 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; 
+            margin-top: 14px; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            min-width: 500px; 
+        }
+        select, .password-input-wrapper input, #customCmd {
+            box-sizing: border-box; 
+        }
+        .config-btn-stack { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); 
+            gap: 6px; 
+            margin-top: 10px; 
+        }
+        .config-btn-stack button { 
+            padding: 12px; 
+            margin: 0; 
+            width: 100%; 
+            text-align: center; 
+        }
+
+        @media (max-width: 768px) {
+            body { 
+                padding: 8px; 
+            }
+            .header-bar { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                gap: 12px; 
+            }
+            .header-bar div { 
+                width: 100%; 
+                display: flex; 
+                justify-content: space-between; 
+            }
+            .grid { 
+                grid-template-columns: 1fr; 
+                gap: 12px; 
+            }
+            .score-display { 
+                font-size: 28px; 
+            }
+            .config-btn-stack { 
+                grid-template-columns: repeat(2, 1fr); 
+            }
+        }
     </style>
 </head>
 <body>
