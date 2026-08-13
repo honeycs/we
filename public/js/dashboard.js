@@ -200,3 +200,32 @@ document.getElementById('serverPassInput').addEventListener('keypress', (e) => {
         }
         consoleDiv.scrollTop = consoleDiv.scrollHeight;
     }
+
+// Standalone handler to process unban queries down to the backend API routing layer
+async function submitUnbanRequest() {
+    const typeSelect = document.getElementById('unbanTypeDropdown');
+    const input = document.getElementById('unbanTargetInput');
+    const consoleDiv = document.getElementById('console');
+    
+    const unbanType = typeSelect.value;
+    const targetValue = input.value.trim();
+    
+    if (!targetValue) return alert("Please specify a target identifier to unban.");
+
+    consoleDiv.innerHTML += `> Sending unban directive for ${unbanType}: [${targetValue}]...\n`;
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+
+    try {
+        const res = await fetch('/api/unban', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: unbanType, target: targetValue })
+        });
+        const data = await res.json();
+        consoleDiv.innerHTML += `${data.message || data.error}\n\n`;
+        if (data.success) input.value = '';
+    } catch (err) {
+        consoleDiv.innerHTML += `Unban Transaction Error: ${err.message}\n\n`;
+    }
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+}
