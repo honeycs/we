@@ -133,6 +133,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (select && select.value) sendCommand(`changelevel ${select.value}`);
     });
 
+    // Action listener for password submission trigger box
+document.getElementById('submitPassBtn').addEventListener('click', submitNewPassword);
+document.getElementById('serverPassInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') submitNewPassword(); });
+
+
     document.body.addEventListener('click', (e) => {
         if (e.target && e.target.classList.contains('rcon-action-btn')) {
             const cmd = e.target.getAttribute('data-cmd');
